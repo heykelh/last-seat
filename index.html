@@ -1232,7 +1232,8 @@ function about(){SFX.click();modal(`<div class="row" style="justify-content:spac
  <tr><td>${T('Comprendre le passage des classes au prix continu','Understand the move from classes to continuous pricing')}</td><td>${T('Vol 6','Flight 6')}</td></tr></table>
  <p class="mut">${T(`${AIRN}, ${PARTN} et ${RIVN} sont des compagnies fictives. Le hub PRX est inventé. Aucune marque réelle n'est représentée.`,`${AIRN}, ${PARTN} and ${RIVN} are fictional airlines. The PRX hub is made up. No real brand is depicted.`)}</p>
  <div class="lesson ye"><h3>🔬 ${T('METHODOLOGIE & LIMITES','METHODOLOGY & LIMITS')}</h3><p>${T('Demandes simulées (lois normales, consentements à payer gaussiens), paramètres choisis pour la pédagogie. Niveau 1 : EMSR-b (Belobaba). Niveau 2 : optimum a posteriori par programmation dynamique, coach par programmation dynamique approchée (Monte-Carlo, 120 futurs). Niveau 3 : algo par programmation dynamique sur la demande attendue. Ce n\'est <b>pas</b> un moteur de production : c\'est un démonstrateur pour apprendre à raisonner.','Simulated demand (normal distributions, Gaussian willingness to pay), parameters chosen for teaching. Level 1: EMSR-b (Belobaba). Level 2: hindsight optimum by dynamic programming, coach by approximate DP (Monte Carlo, 120 futures). Level 3: dynamic programming on expected demand. This is <b>not</b> a production engine: it\'s a demonstrator to learn how to reason.')}</p></div>
- <p class="mut">${T('100 % web, un seul fichier, sans dépendance ni collecte de données. Musique chiptune et sons 8-bit générés en direct. HYKE © 2026. Projet personnel, non affilié à la SNCF ni à aucune compagnie aérienne.','100% web, single file, no dependencies, no data collection. Chiptune music and 8-bit sounds generated live. HYKE © 2026. Personal project, not affiliated with SNCF or any airline.')}</p>`,'n-pu');}
+ <p class="mut">${T('100 % web, un seul fichier, sans dépendance. Musique chiptune et sons 8-bit générés en direct. HYKE © 2026. Projet personnel, non affilié à la SNCF ni à aucune compagnie aérienne.','100% web, single file, no dependencies. Chiptune music and 8-bit sounds generated live. HYKE © 2026. Personal project, not affiliated with SNCF or any airline.')}</p>
+ <p class="mut">📊 ${T('Statistiques anonymes : pour améliorer le jeu, l\'auteur reçoit un résumé des parties (niveaux joués, étoiles, durée, abandon, type d\'appareil, site d\'origine et ville approximative). Pas de cookie, pas de compte, adresse IP non conservée, aucune donnée revendue.','Anonymous statistics: to improve the game, the author receives a summary of games played (levels, stars, duration, quits, device type, referring site and approximate city). No cookies, no account, IP address not stored, no data sold.')} <button class="btn ghost sm" id="trkBtn"></button></p>`,'n-pu');trkBind();}
 function journal(){SFX.click();const head='level;step;action;detail;value';const csv=[head,...S.log.map(l=>[l.level,l.step,l.action,String(l.detail).replace(/;/g,','),l.value].join(';'))].join('\n');
  modal(`<div class="row" style="justify-content:space-between;margin:0"><h2 style="margin:0">🧾 ${T('Journal des décisions','Decision log')}</h2><button class="btn ghost sm" data-close>✕</button></div>
  <p>${T(`${S.log.length} lignes. Copie-les dans Excel ou Power BI (séparateur « ; ») pour analyser tes parties : c'est un retour d'expérience en miniature.`,`${S.log.length} rows. Paste into Excel or Power BI (";" separator) to analyse your games: a mini post-mortem.`)}</p>
@@ -1247,6 +1248,25 @@ $('#bLang').onclick=()=>{if(S.busy)return;S.lang=S.lang==='fr'?'en':'fr';try{loc
 $('#bSnd').onclick=()=>{S.sound=!S.sound;syncTop();SFX.click();};
 $('#bMus').onclick=e=>{e.stopPropagation();MUS.on=!MUS.on;try{localStorage.setItem('lastseat_music',MUS.on?'1':'0');}catch(err){}if(MUS.on)musStart();else musStop();syncTop();};
 $('#bGlo').onclick=glossary;$('#bAbout').onclick=about;$('#bJou').onclick=journal;$('#brand').onclick=()=>{if(!S.busy){SFX.click();go(scrTitle);}};
+
+/* ---------------- STATS ANONYMES (notif ntfy via /api/ping) ---------------- */
+const TRK={on:/(^|\.)last-seat-game\.vercel\.app$/.test(location.hostname),sid:Math.random().toString(36).slice(2,7),t0:Date.now(),lvl:null,lvlT:0,step:'',done:[],quit:false,off:false};
+try{TRK.off=localStorage.getItem('lastseat_nostats')==='1'||navigator.doNotTrack==='1'||navigator.globalPrivacyControl===true;}catch(e){}
+function trkLvl(l){return typeof l==='number'||/^\d+$/.test(l)?'Rail '+l:'Vol '+String(l).replace(/^A/i,'');}
+function trk(ev,data,beacon){if(!TRK.on||TRK.off)return;let ref='';try{ref=document.referrer?new URL(document.referrer).hostname:'';}catch(e){}
+ const qs=new URLSearchParams(location.search);
+ const body=JSON.stringify(Object.assign({ev,sid:TRK.sid,lang:S.lang,mode:S.mode||'rail',dur:Math.round((Date.now()-TRK.t0)/1000),mob:/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent),ref,src:qs.get('utm_source')||qs.get('src')||'',done:TRK.done.join(' ')},data||{}));
+ try{if(beacon&&navigator.sendBeacon)navigator.sendBeacon('/api/ping',new Blob([body],{type:'application/json'}));else fetch('/api/ping',{method:'POST',headers:{'Content-Type':'application/json'},body,keepalive:true}).catch(()=>{});}catch(e){}}
+const _logIt=logIt;
+logIt=function(level,step,action,detail,value){_logIt(level,step,action,detail,value);const L=trkLvl(level);
+ if(TRK.lvl!==L){TRK.lvl=L;TRK.lvlT=Date.now();}TRK.step=action;
+ if(action==='result'){TRK.done.push(L+'='+value+'★');trk('end',{lvl:L,stars:value,detail:String(detail).slice(0,160),lt:Math.round((Date.now()-TRK.lvlT)/1000)});TRK.lvl=null;}};
+function trkQuit(){if(TRK.quit)return;TRK.quit=true;trk('quit',{lvl:TRK.lvl||'',step:TRK.step,lt:TRK.lvl?Math.round((Date.now()-TRK.lvlT)/1000):0},true);}
+addEventListener('pagehide',trkQuit);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')trkQuit();});
+function trkBind(){const b=$('#trkBtn');if(!b)return;const lab=()=>{b.textContent=TRK.off?T('Réactiver','Turn back on'):T('Désactiver pour moi','Turn off for me');};lab();
+ b.onclick=()=>{TRK.off=!TRK.off;try{TRK.off?localStorage.setItem('lastseat_nostats','1'):localStorage.removeItem('lastseat_nostats');}catch(e){}lab();SFX.click();};}
+trk('open',{});
 syncTop();go(scrTitle);
 </script>
 </body>
